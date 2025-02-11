@@ -10,7 +10,7 @@ import (
 
 type Shortcut struct {
 	Template             string   `yaml:"template"`
-	SupportedExecutables []string `yaml:"supportedExecutables"`
+	SupportedExecutables []string `yaml:"supportedExecutables,omitempty"`
 }
 
 type Executable struct {
@@ -38,7 +38,7 @@ func (c *Config) GetExecutable(executableName string) (Executable, error) {
 	return executable, nil
 }
 
-func (c *config) AddShortcut(name string, s Shortcut) error {
+func (c *Config) AddShortcut(name string, s Shortcut) error {
 	val, ok := c.Shortcuts[name]
 	if ok {
 		return fmt.Errorf("shortcut named '%s' already exists. The template is: '%s'", name, val.Template)
@@ -47,7 +47,7 @@ func (c *config) AddShortcut(name string, s Shortcut) error {
 	return c.updateFile()
 }
 
-func (c *config) updateFile() error {
+func (c *Config) updateFile() error {
 	configFilePath, err := getConfigFilePath()
 	if err != nil {
 		return err

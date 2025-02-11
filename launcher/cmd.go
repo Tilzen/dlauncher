@@ -140,6 +140,24 @@ var addCmd = &cobra.Command{
 	},
 }
 
+var initCmd = &cobra.Command{
+	Use:   "init",
+	Short: "Creates a default configuration file",
+	Run: func(cmd *cobra.Command, args []string) {
+		err := CreateDefaultConfig()
+		if err != nil {
+			fmt.Printf("Error creating config file: %v\n", err)
+			os.Exit(1)
+		}
+		configPath, err := getConfigFilePath()
+		if err != nil {
+			fmt.Println("Default configuration file created successfully.")
+		} else {
+			fmt.Printf("Default configuration file created successfully at %s\n", configPath)
+		}
+	},
+}
+
 func init() {
 	runCmd.Flags().BoolP("use-gui", "g", false, "Uses GUI instead of CLI")
 	runCmd.Flags().StringP("executable-name", "e", "", "The program that should execute your command template.")
@@ -152,6 +170,7 @@ func init() {
 
 	rootCmd.AddCommand(runCmd)
 	rootCmd.AddCommand(addCmd)
+	rootCmd.AddCommand(initCmd)
 
 	var err error
 	CONFIG, err = ParseConfig()
