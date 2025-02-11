@@ -10,7 +10,7 @@ import (
 
 type Shortcut struct {
 	Template             string   `yaml:"template"`
-	SupportedExecutables []string `yaml:"supportedExecutables,omitempty"`
+	SupportedExecutables []string `yaml:"supportedExecutables"`
 }
 
 type Executable struct {
@@ -38,6 +38,28 @@ func (c *Config) GetExecutable(executableName string) (Executable, error) {
 	return executable, nil
 }
 
+func (c *config) AddShortcut(name string, s Shortcut) error {
+	val, ok := c.Shortcuts[name]
+	if ok {
+		return fmt.Errorf("shortcut named '%s' already exists. The template is: '%s'", name, val.Template)
+	}
+	c.Shortcuts[name] = s
+	return c.updateFile()
+}
+
+func (c *config) updateFile() error {
+	configFilePath, err := getConfigFilePath()
+	if err != nil {
+		return err
+	}
+	configYAML, err := yaml.Marshal(c)
+	if err != nil {
+		return err
+	}
+	os.WriteFile(configFilePath, configYAML, os.ModePerm)
+	return nil
+}
+
 func (s *Shortcut) HasParams() bool {
 	return strings.Contains(s.Template, "%s")
 }
@@ -56,21 +78,23 @@ func getConfigFilePath() (string, error) {
 }
 
 func ParseConfig() (Config, error) {
+	config := Config{}
+
 	configPath, err := getConfigFilePath()
 	if err != nil {
-		return Config{}, err
+		return config, err
 	}
 
 	configFile, err := os.ReadFile(configPath)
 	if err != nil {
-		return Config{}, fmt.Errorf("config file not found at %s.  Run 'dlauncher init' to create a default config file.", configPath)
+		return config, err
 	}
 
-	config := Config{}
 	err = yaml.Unmarshal(configFile, &config)
 	if err != nil {
-		return Config{}, err
+		return config, err
 	}
+
 	return config, nil
 }
 

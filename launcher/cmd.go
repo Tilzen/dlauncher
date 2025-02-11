@@ -10,7 +10,7 @@ import (
 
 var CONFIG Config
 
-func getFlagValues(cmd *cobra.Command, display CobraDisplay) (Shortcut, Executable, []string, error) {
+func runCmdGetFlagValues(cmd *cobra.Command, display CobraDisplay) (Shortcut, Executable, []string, error) {
 	s := Shortcut{}
 	e := Executable{}
 	params := []string{}
@@ -47,7 +47,27 @@ func getFlagValues(cmd *cobra.Command, display CobraDisplay) (Shortcut, Executab
 	return s, e, params, nil
 }
 
-var rootCmd = &cobra.Command{
+func addCmdGetFlagValues(cmd *cobra.Command, display CobraDisplay) (string, Shortcut, error) {
+	s := Shortcut{}
+	name, err := cmd.Flags().GetString("shortcut-name")
+	if err != nil {
+		return name, s, err
+	}
+	if name == "" {
+		name = display.Prompt("Shortcut name")
+	}
+	s.Template, err = cmd.Flags().GetString("shortcut-name")
+	if err != nil {
+		return name, s, err
+	}
+	if s.Template == "" {
+		s.Template = display.Prompt("Shortcut template")
+	}
+
+	return name, s, nil
+}
+
+var runCmd = &cobra.Command{
 	Use:   "run",
 	Short: "Runs a shortcut",
 	Args:  cobra.NoArgs,
@@ -61,15 +81,15 @@ var rootCmd = &cobra.Command{
 
 		useGUI, _ := cmd.Flags().GetBool("use-gui")
 		display := NewDisplay(useGUI, args)
-		shortcut, executable, params, err := getFlagValues(cmd, display)
+		shortcut, executable, params, err := runCmdGetFlagValues(cmd, display)
 		if err != nil {
 			display.Error(err.Error())
-			panic(err)
+			return
 		}
 		err = RunCommand(shortcut, executable, params)
 		if err != nil {
 			display.Error(err.Error())
-			panic(err)
+			return
 		}
 	},
 }
@@ -93,16 +113,48 @@ var initCmd = &cobra.Command{
 	},
 }
 
+var addCmd = &cobra.Command{
+	Use:   "add",
+	Short: "Adds a command to your config file",
+	Args:  cobra.NoArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		useGUI, _ := cmd.Flags().GetBool("use-gui")
+		display := NewDisplay(useGUI, args)
+		name, shortcut, err := addCmdGetFlagValues(cmd, display)
+		if err != nil {
+			display.Error(err.Error())
+			return
+		}
+		err = CONFIG.AddShortcut(name, shortcut)
+		if err != nil {
+			display.Error(err.Error())
+			return
+		}
+		fmt.Printf("Done! Added shortcut '%s' -> '%s'", name, shortcut.Template)
+	},
+}
+
 func init() {
-	rootCmd.Flags().BoolP("use-gui", "g", false, "Uses GUI instead of CLI")
-	rootCmd.Flags().StringP("executable-name", "e", "", "The program that should execute your command template.")
-	rootCmd.Flags().StringP("shortcut-name", "s", "", "The name of the shortcut.")
-	rootCmd.Flags().StringArrayP("params", "p", []string{}, "(optional) The params for the command.")
-	rootCmd.AddCommand(initCmd)
+	runCmd.Flags().BoolP("use-gui", "g", false, "Uses GUI instead of CLI")
+	runCmd.Flags().StringP("executable-name", "e", "", "The program that should execute your command template.")
+	runCmd.Flags().StringP("shortcut-name", "s", "", "The name of the shortcut.")
+	runCmd.Flags().StringArrayP("params", "p", []string{}, "(optional) The params for the command.")
+
+	addCmd.Flags().BoolP("use-gui", "g", false, "Uses GUI instead of CLI")
+	addCmd.Flags().StringP("shortcut-name", "s", "", "The name of the shortcut.")
+	addCmd.Flags().StringP("shortcut-template", "t", "", "The template for the shortcut.")
+
+	runCmd.AddCommand(addCmd)
+
+	var err error
+	CONFIG, err = ParseConfig()
+	if err != nil {
+		panic(err)
+	}
 }
 
 func Execute() {
-	if err := rootCmd.Execute(); err != nil {
+	if err := runCmd.Execute(); err != nil {
 		panic(err)
 	}
 }
